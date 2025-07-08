@@ -482,6 +482,31 @@ else:
 with col2:
     st.subheader(f"Analisis Unsupervised: Risiko Harga di {selected_province}")
 
+    # Use a container with a border for a neater look
+    with st.container(border=True):
+        st.markdown("##### Momentum Tren Harga")
+        # Ensure prices are numeric before calculation
+        delta_momentum = "Data Tidak Tersedia"
+        # Use selected_date_data for momentum calculation if available
+        data_for_momentum = selected_date_data
+
+        if data_for_momentum is not None and 'harga_beras' in data_for_momentum and 'harga_beras_bulan_lalu' in data_for_momentum:
+             current_price_numeric = pd.to_numeric(data_for_momentum['harga_beras'], errors='coerce')
+             last_month_price_numeric = pd.to_numeric(data_for_momentum['harga_beras_bulan_lalu'], errors='coerce')
+
+             if pd.notnull(current_price_numeric) and pd.notnull(last_month_price_numeric):
+                  delta_value = current_price_numeric - last_month_price_numeric
+                  if delta_value > 100: # Assume increase more than Rp 50 is an upward trend
+                      delta_momentum = "🔴 **Cenderung Naik** (Harga bulan lalu lebih tinggi dari sebelumnya)"
+                  elif delta_value < -100:
+                      delta_momentum = "🟢 **Cenderung Turun**"
+                  else:
+                      delta_momentum = "🟡 **Stabil**"
+        else:
+             delta_momentum = "⚪ **Data Tidak Tersedia** (Data historis bulan lalu tidak lengkap untuk tanggal/provinsi terpilih)"
+
+        st.markdown(delta_momentum)
+    
     if selected_date_data is not None and kmeans_model and iso_model and scaler:
         # Fitur yang digunakan saat pelatihan model unsupervised
         cluster_features = ['harga_beras', 'stok_beras_ton', 'jumlah_bencana', 'jumlah_curah_hujan']
