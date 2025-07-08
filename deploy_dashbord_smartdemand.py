@@ -483,45 +483,51 @@ with col2:
     st.subheader(f"Analisis Unsupervised: Risiko Harga di {selected_province}")
 
     if selected_date_data is not None and kmeans_model and iso_model and scaler:
-        # Fitur yang digunakan untuk clustering dan anomaly detection
-        cluster_features = ['harga_beras_bulan_lalu', 'stok_beras_ton', 'jumlah_bencana']
+        # Fitur yang digunakan saat pelatihan model unsupervised
+        cluster_features = ['harga_beras', 'stok_beras_ton', 'jumlah_bencana', 'jumlah_curah_hujan']
 
-        try:
-            fitur_input = pd.DataFrame([selected_date_data[cluster_features]])
-            fitur_input = fitur_input.apply(pd.to_numeric, errors='coerce')
+        # Validasi ketersediaan semua fitur
+        missing_cols = [col for col in cluster_features if col not in selected_date_data or pd.isna(selected_date_data[col])]
+        if missing_cols:
+            st.warning(f"❗ Kolom berikut tidak tersedia atau memiliki nilai kosong untuk analisis unsupervised: {', '.join(missing_cols)}")
+        else:
+            try:
+                fitur_input = pd.DataFrame([selected_date_data[cluster_features]])
+                fitur_input = fitur_input.apply(pd.to_numeric, errors='coerce')
 
-            if fitur_input.isnull().any().any():
-                st.warning("❗ Data tidak lengkap untuk analisis unsupervised.")
-            else:
-                # Scaling
-                fitur_scaled = scaler.transform(fitur_input)
+                # Cek nilai null setelah konversi
+                if fitur_input.isnull().any().any():
+                    st.warning("❗ Data tidak lengkap atau tidak valid untuk analisis unsupervised.")
+                else:
+                    # Scaling
+                    fitur_scaled = scaler.transform(fitur_input)
 
-                # --- KMEANS CLUSTERING ---
-                cluster_label = kmeans_model.predict(fitur_scaled)[0]
+                    # --- KMEANS CLUSTERING ---
+                    cluster_label = kmeans_model.predict(fitur_scaled)[0]
 
-                with st.container(border=True):
-                    st.markdown("##### Segmentasi Risiko (K-Means)")
-                    st.markdown(f"📊 Data masuk ke **Cluster {cluster_label}**")
+                    with st.container(border=True):
+                        st.markdown("##### Segmentasi Risiko (K-Means)")
+                        st.markdown(f"📊 Data masuk ke **Cluster {cluster_label}**")
 
-                    if cluster_label == 0:
-                        st.markdown("🟢 **Kondisi Aman** — Harga stabil, suplai mencukupi.")
-                    elif cluster_label == 1:
-                        st.markdown("🟠 **Waspada** — Ada tekanan pada harga atau stok.")
-                    elif cluster_label == 2:
-                        st.markdown("🔴 **Kritis** — Kombinasi stok rendah, bencana, dan harga tinggi.")
-                    else:
-                        st.markdown("⚪ **Kategori tidak diketahui**")
+                        if cluster_label == 0:
+                            st.markdown("🟢 **Kondisi Aman** — Harga stabil, suplai mencukupi.")
+                        elif cluster_label == 1:
+                            st.markdown("🟠 **Waspada** — Ada tekanan pada harga atau stok.")
+                        elif cluster_label == 2:
+                            st.markdown("🔴 **Kritis** — Kombinasi stok rendah, bencana, dan harga tinggi.")
+                        else:
+                            st.markdown("⚪ **Kategori tidak diketahui**")
 
-                # --- ISOLATION FOREST ANOMALY DETECTION ---
-                anomaly = iso_model.predict(fitur_scaled)[0]  # -1 = anomaly, 1 = normal
+                    # --- ISOLATION FOREST ANOMALY DETECTION ---
+                    anomaly = iso_model.predict(fitur_scaled)[0]  # -1 = anomaly, 1 = normal
 
-                with st.container(border=True):
-                    st.markdown("##### Deteksi Anomali (Isolation Forest)")
-                    if anomaly == -1:
-                        st.markdown("🚨 **Anomali Terdeteksi!** Kondisi saat ini menyimpang dari pola normal.")
-                    else:
-                        st.markdown("✅ **Normal** — Tidak ada indikasi keanehan signifikan.")
-        except Exception as e:
-            st.error(f"Gagal melakukan analisis unsupervised: {e}")
+                    with st.container(border=True):
+                        st.markdown("##### Deteksi Anomali (Isolation Forest)")
+                        if anomaly == -1:
+                            st.markdown("🚨 **Anomali Terdeteksi!** Kondisi saat ini menyimpang dari pola normal.")
+                        else:
+                            st.markdown("✅ **Normal** — Tidak ada indikasi keanehan signifikan.")
+            except Exception as e:
+                st.error(f"❗ Gagal melakukan analisis unsupervised: {e}")
     else:
         st.warning("❗ Model atau data tidak tersedia.")
