@@ -34,9 +34,9 @@ def load_raw_data():
     forecast_df = None
 
     try:
-        hist_df = pd.read_csv('master_table_fix.csv')
+        hist_df = pd.read_csv('master_table_modified_csv.csv')
         print("master_table_fix.csv loaded successfully.")
-        print("Columns in master_table_fix.csv:", hist_df.columns.tolist())
+        print("Columns in master_table_modified_fix.csv:", hist_df.columns.tolist())
 
         forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
         print("hasil_prediksi_12_bulan.csv loaded successfully.")
@@ -481,9 +481,9 @@ from sklearn.preprocessing import StandardScaler
 @st.cache_resource
 def load_unsupervised_models():
     try:
-        kmeans = joblib.load("/mnt/data/kmeans_model.joblib")
-        isoforest = joblib.load("/mnt/data/isolation_forest_model.joblib")
-        scaler = joblib.load("/mnt/data/unsupervised_scaler.joblib")
+        kmeans = joblib.load("kmeans_model.joblib")
+        isoforest = joblib.load("isolation_forest_model.joblib")
+        scaler = joblib.load("unsupervised_scaler.joblib")
         return kmeans, isoforest, scaler
     except Exception as e:
         st.error(f"Gagal memuat model unsupervised: {e}")
