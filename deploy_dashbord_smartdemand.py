@@ -216,8 +216,8 @@ else:
 # --- KPI 3: Akurasi Model ---
 kpi3.metric(
     label="Akurasi Model (MAE)",
-    value="~ Rp 161",
-    help="Rata-rata, prediksi model pada data historis hanya meleset sebesar Rp 161 dari harga aktual."
+    value="~ Rp 110",
+    help="Rata-rata, prediksi model pada data historis hanya meleset sebesar Rp 110 dari harga aktual."
 )
 
 st.subheader("📝 Ringkasan Otomatis")
