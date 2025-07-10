@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 import json
 
 # --- KONFIGURASI HALAMAN ---
+# Mengatur konfigurasi halaman Streamlit. Ini harus menjadi perintah st pertama.
 st.set_page_config(
     page_title="Dashboard SmartDemand-ID",
     page_icon="🍚",
@@ -16,26 +17,55 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- FUNGSI UNTUK MEMUAT DATA & ASET ---
+# Menggunakan cache agar data dan model only loaded once for faster performance.
 @st.cache_data
 def load_raw_data():
+    """Memuat data mentah historis dan prediksi."""
     hist_df = None
     forecast_df = None
+
     try:
         hist_df = pd.read_csv('master_table_modified_fix.csv')
+        print("master_table_fix.csv loaded successfully.")
+        print("Columns in master_table_modified_fix.csv:", hist_df.columns.tolist())
+
         forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
+        print("hasil_prediksi_12_bulan.csv loaded successfully.")
+        print("Columns in hasil_prediksi_12_bulan.csv:", forecast_df.columns.tolist())
+
         return hist_df, forecast_df
+    except FileNotFoundError as e:
+        st.error(f"File data not found: {e}. Make sure 'master_table_fix.csv' and 'hasil_prediksi_12_bulan.csv' are in the correct directory.")
+        return None, None
     except Exception as e:
-        st.error(f"Gagal memuat data: {e}")
+        st.error(f"An error occurred during raw data loading: {e}")
         return None, None
 
 @st.cache_resource
 def load_model():
+    """Memuat model machine learning yang sudah dilatih."""
     try:
-        return joblib.load('model.joblib')
+        model = joblib.load('model.joblib')
+        print("Model 'model.joblib' loaded successfully.")
+        return model
+    except FileNotFoundError:
+        st.error("File model 'model.joblib' not found. Please run the notebook to create it.")
+        return None
     except Exception as e:
-        st.error(f"Gagal memuat model: {e}")
+        st.error(f"An error occurred during model loading: {e}")
         return None
 
+# --- MEMUAT DATA & MODEL ---
+df_hist_raw, df_forecast_raw = load_raw_data()
+model = load_model()
+geojson_url = "https://raw.githubusercontent.com/superpikar/indonesia-geojson/master/indonesia-province.json" # Default GeoJSON URL
+
+# If raw data or model failed to load, stop application execution.
+if df_hist_raw is None or df_forecast_raw is None or model is None or geojson_url is None:
+    st.stop()
+
+# Load all unsupervised models
 @st.cache_resource
 def load_unsupervised_models():
     try:
@@ -47,36 +77,8 @@ def load_unsupervised_models():
         st.error(f"Gagal memuat model unsupervised: {e}")
         return None, None, None
 
-# --- FUNGSI TAMBAHAN: Terapkan model unsupervised ke hasil prediksi ---
-def apply_unsupervised_to_forecast(df_forecast, kmeans_model, iso_model, scaler):
-    df = df_forecast.copy()
-    fitur_unsup = ['harga_prediksi', 'stok_beras_ton', 'jumlah_bencana', 'jumlah_curah_hujan']
-    for col in fitur_unsup:
-        if col in df.columns and df[col].dtype == 'object':
-            df[col] = df[col].astype(str).str.replace(',', '', regex=False)
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    df.dropna(subset=fitur_unsup, inplace=True)
-    if df.empty:
-        return df_forecast
-    fitur_scaled = scaler.transform(df[fitur_unsup])
-    df['cluster_kmeans'] = kmeans_model.predict(fitur_scaled)
-    df['anomaly_isolation_forest'] = iso_model.predict(fitur_scaled)
-    return df
-
-# --- MEMUAT SEMUA ASET ---
-df_hist_raw, df_forecast_raw = load_raw_data()
-model = load_model()
 kmeans_model, iso_model, scaler = load_unsupervised_models()
-geojson_url = "https://raw.githubusercontent.com/superpikar/indonesia-geojson/master/indonesia-province.json"
 
-if None in [df_hist_raw, df_forecast_raw, model, kmeans_model, iso_model, scaler]:
-    st.stop()
-
-# Terapkan model unsupervised ke data prediksi
-if 'df_forecast' not in st.session_state:
-    st.session_state['df_forecast'] = apply_unsupervised_to_forecast(df_forecast_raw, kmeans_model, iso_model, scaler)
-
-df_forecast = st.session_state['df_forecast']
 # --- DATA PREPROCESSING (outside cache to apply consistently) ---
 
 # Handle 'tanggal' column for historical data
