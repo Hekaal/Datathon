@@ -23,16 +23,13 @@ def load_raw_data():
     hist_df = None
     forecast_df = None
     try:
-        # Menggunakan file yang sesuai dengan analisis unsupervised
-        hist_df = pd.read_csv('master_table_modified_fix.csv')
+        hist_df = pd.read_csv('master_table_modified_unsupervised.csv')
         print("master_table_modified_unsupervised.csv loaded successfully.")
-
-        forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
+        forecast_df = pd.read_csv('hasil_prediksi_dengan_unsupervised.csv')
         print("hasil_prediksi_dengan_unsupervised.csv loaded successfully.")
-        
         return hist_df, forecast_df
     except FileNotFoundError as e:
-        st.error(f"File data tidak ditemukan: {e}. Pastikan 'master_table_modified_fix.csv' dan 'hasil_prediksi_12_bulan.csv' berada di direktori yang benar.")
+        st.error(f"File data tidak ditemukan: {e}. Pastikan 'master_table_modified_unsupervised.csv' dan 'hasil_prediksi_dengan_unsupervised.csv' berada di direktori yang benar.")
         return None, None
     except Exception as e:
         st.error(f"Terjadi kesalahan saat memuat data mentah: {e}")
@@ -179,26 +176,19 @@ kpi3.metric(
     help="Rata-rata, prediksi model pada data historis hanya meleset sebesar Rp 110 dari harga aktual."
 )
 
-# --- [PERBAIKAN] RINGKASAN OTOMATIS ---
+# --- RINGKASAN OTOMATIS ---
 st.subheader("📝 Ringkasan Otomatis")
-
-# Ambil harga untuk tanggal yang dipilih (variabel `harga_value` dari KPI 1 sudah ada)
 harga_sekarang_num = harga_value
-
-# Ambil harga untuk bulan depan (variabel `pred_price_numeric` dari KPI 2 sudah ada)
 harga_bulan_depan_num = pred_price_numeric
 sumber_bulan_depan = source_kpi.strip("()") if source_kpi != "N/A" else None
 
-# Hasilkan ringkasan jika kedua harga valid
 if pd.notnull(harga_sekarang_num) and pd.notnull(harga_bulan_depan_num) and target_prediction_date:
     selisih = harga_bulan_depan_num - harga_sekarang_num
     trend = "kenaikan" if selisih > 0 else "penurunan" if selisih < 0 else "stabil"
     emoji = "🔺" if trend == "kenaikan" else "🔻" if trend == "penurunan" else "⚖️"
-
     st.markdown(
         f"""
         {emoji} Berdasarkan data tanggal terpilih, pada bulan **{target_prediction_date.strftime('%B %Y')}** diprediksi akan terjadi **{trend}** harga.
-
         Harga di provinsi **{selected_province}** diperkirakan berubah dari **Rp {harga_sekarang_num:,.0f}** menjadi **Rp {harga_bulan_depan_num:,.0f}**.
         *(Sumber data bulan depan: {sumber_bulan_depan})*
         """
@@ -209,7 +199,6 @@ else:
         error_msgs.append(f"harga untuk {selected_historical_date.strftime('%B %Y')}")
     if pd.isna(harga_bulan_depan_num) and target_prediction_date:
         error_msgs.append(f"harga untuk {target_prediction_date.strftime('%B %Y')}")
-    
     st.warning(f"❗ Data tidak lengkap untuk menghasilkan ringkasan otomatis. Data berikut tidak tersedia: {', '.join(error_msgs)}.")
 
 # --- KONTEN UTAMA ---
@@ -233,7 +222,6 @@ with col1:
         for prov in df_hist['provinsi'].unique():
             current_price = None
             next_month_price = None
-            
             current_price_df = df_hist[(df_hist['provinsi'] == prov) & (df_hist['tanggal'] == selected_historical_date)]
             if not current_price_df.empty:
                 current_price = pd.to_numeric(current_price_df.iloc[0]['harga_beras'], errors='coerce')
@@ -241,7 +229,6 @@ with col1:
                 current_price_df = df_forecast[(df_forecast['provinsi'] == prov) & (df_forecast['tanggal'] == selected_historical_date)]
                 if not current_price_df.empty:
                     current_price = pd.to_numeric(current_price_df.iloc[0]['harga_prediksi'], errors='coerce')
-
             next_month_df = df_forecast[(df_forecast['provinsi'] == prov) & (df_forecast['tanggal'] == target_prediction_date)]
             if not next_month_df.empty:
                 next_month_price = pd.to_numeric(next_month_df.iloc[0]['harga_prediksi'], errors='coerce')
@@ -249,18 +236,15 @@ with col1:
                 next_month_df = df_hist[(df_hist['provinsi'] == prov) & (df_hist['tanggal'] == target_prediction_date)]
                 if not next_month_df.empty:
                     next_month_price = pd.to_numeric(next_month_df.iloc[0]['harga_beras'], errors='coerce')
-
             if pd.notnull(current_price) and pd.notnull(next_month_price) and current_price > 0:
                 kenaikan_persen = ((next_month_price - current_price) / current_price) * 100
                 map_data.append({'provinsi': prov, 'kenaikan_persen': kenaikan_persen})
-
     if map_data:
         df_map = pd.DataFrame(map_data)
         fig_map = px.choropleth(
             df_map, geojson=geojson_url, locations='provinsi', featureidkey="properties.Propinsi",
             color='kenaikan_persen', color_continuous_scale="Reds", scope="asia",
-            labels={'kenaikan_persen': 'Kenaikan Harga (%)'}
-        )
+            labels={'kenaikan_persen': 'Kenaikan Harga (%)'})
         fig_map.update_geos(fitbounds="locations", visible=False)
         fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar=dict(title="Kenaikan (%)"))
         st.plotly_chart(fig_map, use_container_width=True)
@@ -270,17 +254,45 @@ with col1:
 with col2:
     st.subheader(f"Analisis Unsupervised: Risiko Harga di {selected_province}")
     
+    # --- [PERBAIKAN] Momentum Tren Harga ---
     with st.container(border=True):
         st.markdown("##### Momentum Tren Harga")
         delta_momentum = "⚪ **Data Tidak Tersedia**"
-        if selected_date_data is not None and 'harga_beras_bulan_lalu' in selected_date_data:
-            current_price_numeric = harga_value
-            last_month_price_numeric = pd.to_numeric(selected_date_data['harga_beras_bulan_lalu'], errors='coerce')
-            if pd.notnull(current_price_numeric) and pd.notnull(last_month_price_numeric):
-                delta_value = current_price_numeric - last_month_price_numeric
-                if delta_value > 100: delta_momentum = "🔴 **Cenderung Naik**"
-                elif delta_value < -100: delta_momentum = "🟢 **Cenderung Turun**"
-                else: delta_momentum = "🟡 **Stabil**"
+        
+        # Harga saat ini sudah dihitung untuk KPI 1 (variabel 'harga_value')
+        current_price_numeric = harga_value
+
+        if selected_historical_date and pd.notnull(current_price_numeric):
+            # Hitung tanggal bulan sebelumnya
+            previous_month_date = (selected_historical_date - pd.DateOffset(months=1)).replace(day=1)
+            previous_month_price = None
+            
+            # Cari harga bulan lalu di data historis
+            prev_month_hist_df = df_hist[
+                (df_hist['provinsi'] == selected_province) & 
+                (df_hist['tanggal'] == previous_month_date)]
+            if not prev_month_hist_df.empty:
+                previous_month_price = pd.to_numeric(prev_month_hist_df.iloc[0]['harga_beras'], errors='coerce')
+            else:
+                # Jika tidak ada, cari di data prediksi (untuk kasus antar bulan prediksi)
+                prev_month_forecast_df = df_forecast[
+                    (df_forecast['provinsi'] == selected_province) & 
+                    (df_forecast['tanggal'] == previous_month_date)]
+                if not prev_month_forecast_df.empty:
+                    previous_month_price = pd.to_numeric(prev_month_forecast_df.iloc[0]['harga_prediksi'], errors='coerce')
+            
+            # Hitung momentum jika kedua harga tersedia
+            if pd.notnull(previous_month_price):
+                delta_value = current_price_numeric - previous_month_price
+                if delta_value > 100:
+                    delta_momentum = "🔴 **Cenderung Naik**"
+                elif delta_value < -100:
+                    delta_momentum = "🟢 **Cenderung Turun**"
+                else:
+                    delta_momentum = "🟡 **Stabil**"
+            else:
+                delta_momentum = f"⚪ **Data bulan lalu ({previous_month_date.strftime('%B %Y')}) tidak tersedia**"
+        
         st.markdown(delta_momentum)
 
     if selected_date_data is not None and kmeans_model and iso_model and scaler:
