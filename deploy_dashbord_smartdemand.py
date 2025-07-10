@@ -176,8 +176,8 @@ kpi3.metric(
     help="Rata-rata, prediksi model pada data historis hanya meleset sebesar Rp 110 dari harga aktual."
 )
 
-# --- RINGKASAN OTOMATIS ---
-st.subheader("📝 Ringkasan Otomatis")
+# --- RINGKASAN ---
+st.subheader("📝 Ringkasan")
 harga_sekarang_num = harga_value
 harga_bulan_depan_num = pred_price_numeric
 sumber_bulan_depan = source_kpi.strip("()") if source_kpi != "N/A" else None
