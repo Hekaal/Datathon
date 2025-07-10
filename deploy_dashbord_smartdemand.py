@@ -27,11 +27,11 @@ def load_raw_data():
 
     try:
         # Memuat data historis yang sudah mencakup fitur unsupervised
-        hist_df = pd.read_csv('master_table_modified_unsupervised.csv')
+        hist_df = pd.read_csv('master_table_modified_fix.csv')
         print("master_table_modified_unsupervised.csv loaded successfully.")
 
         # Memuat data prediksi yang sudah mencakup fitur unsupervised
-        forecast_df = pd.read_csv('hasil_prediksi_dengan_unsupervised.csv')
+        forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
         print("hasil_prediksi_dengan_unsupervised.csv loaded successfully.")
 
         return hist_df, forecast_df
