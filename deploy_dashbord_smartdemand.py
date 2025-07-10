@@ -77,36 +77,47 @@ if 'df_forecast' not in st.session_state:
     st.session_state['df_forecast'] = apply_unsupervised_to_forecast(df_forecast_raw, kmeans_model, iso_model, scaler)
 
 df_forecast = st.session_state['df_forecast']
-# --- DATA PREPROCESSING (outside cache to apply consistently) ---
 
-# Handle 'tanggal' column for historical data
-df_hist = df_hist_raw.copy() # Work on a copy to avoid modifying cached raw data
+# --- VISUALISASI HASIL PREDIKSI DENGAN UNSUPERVISED ---
+st.title("📈 Analisis Risiko Berdasarkan Prediksi")
+st.markdown("Hasil prediksi yang telah diperkaya dengan segmentasi risiko dan deteksi anomali.")
 
-# Now that 'tanggal' is expected to be in the CSV, convert it directly
-if 'tanggal' in df_hist.columns:
-    df_hist['tanggal'] = pd.to_datetime(df_hist['tanggal'], errors='coerce')
-    print("Date column 'tanggal' found and converted in df_hist.")
-elif 'Tanggal' in df_hist.columns: # Keep this as a fallback if 'tanggal' wasn't the exact name
-    df_hist['tanggal'] = pd.to_datetime(df_hist['Tanggal'], errors='coerce')
-    print("Date column 'Tanggal' found and converted in df_hist.")
-# Removed the old logic for creating 'tanggal' from 'tahun' and 'bulan'
+# Tampilkan peta cluster berdasarkan hasil prediksi
+if not df_forecast.empty and 'provinsi' in df_forecast.columns:
+    tab1, tab2 = st.tabs(["🗺️ Peta Risiko (Cluster)", "🚨 Deteksi Anomali"])
+
+    with tab1:
+        st.subheader("Segmentasi Risiko (KMeans Clustering)")
+        fig_cluster = px.choropleth(
+            df_forecast,
+            geojson=geojson_url,
+            locations='provinsi',
+            featureidkey="properties.Propinsi",
+            color='cluster_kmeans',
+            color_continuous_scale=["#2ca02c", "#ff7f0e", "#d62728"],
+            scope="asia",
+            labels={'cluster_kmeans': 'Cluster Risiko'}
+        )
+        fig_cluster.update_geos(fitbounds="locations", visible=False)
+        st.plotly_chart(fig_cluster, use_container_width=True)
+
+    with tab2:
+        st.subheader("Deteksi Anomali (Isolation Forest)")
+        df_forecast['anomali_flag'] = df_forecast['anomaly_isolation_forest'].map({-1: 'Anomali', 1: 'Normal'})
+        fig_anomali = px.choropleth(
+            df_forecast,
+            geojson=geojson_url,
+            locations='provinsi',
+            featureidkey="properties.Propinsi",
+            color='anomali_flag',
+            color_discrete_map={'Normal': 'green', 'Anomali': 'red'},
+            scope="asia",
+            labels={'anomali_flag': 'Status'}
+        )
+        fig_anomali.update_geos(fitbounds="locations", visible=False)
+        st.plotly_chart(fig_anomali, use_container_width=True)
 else:
-    st.error("Could not find a 'tanggal' or 'Tanggal' column in master_table_fix.csv. Please ensure the date column exists and is named 'tanggal' or 'Tanggal'. Stopping application.")
-    st.stop()
-
-
-# Convert price and stock columns to numeric in historical data
-for col in ['harga_beras', 'harga_beras_bulan_lalu', 'stok_beras_ton']:
-    if col in df_hist.columns:
-        if df_hist[col].dtype == 'object':
-            df_hist[col] = df_hist[col].astype(str).str.replace(',', '', regex=False)
-            df_hist[col] = pd.to_numeric(df_hist[col], errors='coerce')
-        elif not pd.api.types.is_numeric_dtype(df_hist[col]):
-             st.warning(f"Column '{col}' in df_hist is not object or numeric type: {df_hist[col].dtype}. Attempting numeric conversion anyway.")
-             df_hist[col] = pd.to_numeric(df_hist[col], errors='coerce')
-
-    if df_hist[col].isnull().any():
-        st.warning(f"NaN values introduced in '{col}' column of df_hist after conversion. Check original data for non-numeric entries.")
+    st.warning("Data prediksi tidak tersedia atau tidak lengkap.")
 
 
 # Create 'tanggal' column for forecast data (assuming it has a date column)
