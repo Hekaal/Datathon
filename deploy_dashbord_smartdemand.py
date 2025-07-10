@@ -24,7 +24,7 @@ def load_raw_data():
     forecast_df = None
     try:
         # Menggunakan file yang sesuai dengan analisis unsupervised
-        hist_df = pd.read_csv('master_table_fix.csv')
+        hist_df = pd.read_csv('master_table_modified_fix.csv')
         print("master_table_modified_unsupervised.csv loaded successfully.")
 
         forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
@@ -32,7 +32,7 @@ def load_raw_data():
         
         return hist_df, forecast_df
     except FileNotFoundError as e:
-        st.error(f"File data tidak ditemukan: {e}. Pastikan 'master_table_modified_unsupervised.csv' dan 'hasil_prediksi_dengan_unsupervised.csv' berada di direktori yang benar.")
+        st.error(f"File data tidak ditemukan: {e}. Pastikan 'master_table_modified_fix.csv' dan 'hasil_prediksi_12_bulan.csv' berada di direktori yang benar.")
         return None, None
     except Exception as e:
         st.error(f"Terjadi kesalahan saat memuat data mentah: {e}")
