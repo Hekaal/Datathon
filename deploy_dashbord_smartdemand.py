@@ -249,36 +249,57 @@ with col1:
     fig_ts.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     st.plotly_chart(fig_ts, use_container_width=True)
 
-    # --- RISK MAP ---
-    st.subheader(f"Peta Risiko Kenaikan Harga Nasional (Prediksi untuk {target_prediction_date.strftime('%B %Y') if target_prediction_date else 'Bulan Depan'})")
-    map_data = []
-    if selected_historical_date:
-        for prov in df_hist['provinsi'].unique():
-            # Current price (from selected date)
-            current_price_data_hist = df_hist[(df_hist['provinsi'] == prov) & (df_hist['tanggal'] == selected_historical_date)]
-            current_price = pd.to_numeric(current_price_data_hist.iloc[0]['harga_beras'], errors='coerce') if not current_price_data_hist.empty else None
+# --- RISK MAP ---
+st.subheader(f"Peta Risiko Kenaikan Harga Nasional (Prediksi untuk {target_prediction_date.strftime('%B %Y') if target_prediction_date else 'Bulan Depan'})")
+map_data = []
 
-            # Next month's predicted price
-            next_month_pred_df = df_forecast[(df_forecast['provinsi'] == prov) & (df_forecast['tanggal'] == target_prediction_date)]
-            next_month_price = pd.to_numeric(next_month_pred_df.iloc[0]['harga_prediksi'], errors='coerce') if not next_month_pred_df.empty else None
+# Pastikan tanggal yang dipilih dan target bulan berikutnya valid
+if selected_historical_date and target_prediction_date:
+    for prov in df_hist['provinsi'].unique():
+        current_price = None
+        next_month_price = None
 
-            if pd.notnull(current_price) and pd.notnull(next_month_price) and current_price > 0:
-                kenaikan_persen = ((next_month_price - current_price) / current_price) * 100
-                map_data.append({'provinsi': prov, 'kenaikan_persen': kenaikan_persen})
+        # 1. Ambil harga untuk tanggal yang dipilih (bisa historis atau prediksi)
+        # Cek data historis terlebih dahulu
+        current_price_df = df_hist[(df_hist['provinsi'] == prov) & (df_hist['tanggal'] == selected_historical_date)]
+        if not current_price_df.empty:
+            current_price = pd.to_numeric(current_price_df.iloc[0]['harga_beras'], errors='coerce')
+        else:
+            # Jika tidak ada di historis, cek data prediksi
+            current_price_df = df_forecast[(df_forecast['provinsi'] == prov) & (df_forecast['tanggal'] == selected_historical_date)]
+            if not current_price_df.empty:
+                current_price = pd.to_numeric(current_price_df.iloc[0]['harga_prediksi'], errors='coerce')
 
-    if map_data:
-        df_map = pd.DataFrame(map_data)
-        fig_map = px.choropleth(
-            df_map, geojson=geojson_url, locations='provinsi', featureidkey="properties.Propinsi",
-            color='kenaikan_persen', color_continuous_scale="Reds", scope="asia",
-            labels={'kenaikan_persen': 'Kenaikan Harga (%)'}
-        )
-        fig_map.update_geos(fitbounds="locations", visible=False)
-        fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar=dict(title="Kenaikan (%)"))
-        st.plotly_chart(fig_map, use_container_width=True)
-    else:
-        st.warning("❗ Tidak cukup data untuk menampilkan peta risiko.")
+        # 2. Ambil harga untuk bulan berikutnya (bisa prediksi atau historis)
+        # Cek data prediksi terlebih dahulu
+        next_month_df = df_forecast[(df_forecast['provinsi'] == prov) & (df_forecast['tanggal'] == target_prediction_date)]
+        if not next_month_df.empty:
+            next_month_price = pd.to_numeric(next_month_df.iloc[0]['harga_prediksi'], errors='coerce')
+        else:
+            # Jika tidak ada di prediksi, cek data historis (sebagai fallback)
+            next_month_df = df_hist[(df_hist['provinsi'] == prov) & (df_hist['tanggal'] == target_prediction_date)]
+            if not next_month_df.empty:
+                next_month_price = pd.to_numeric(next_month_df.iloc[0]['harga_beras'], errors='coerce')
 
+        # 3. Hitung persentase kenaikan jika kedua harga valid
+        if pd.notnull(current_price) and pd.notnull(next_month_price) and current_price > 0:
+            kenaikan_persen = ((next_month_price - current_price) / current_price) * 100
+            map_data.append({'provinsi': prov, 'kenaikan_persen': kenaikan_persen})
+
+# Tampilkan peta jika data berhasil dikumpulkan
+if map_data:
+    df_map = pd.DataFrame(map_data)
+    fig_map = px.choropleth(
+        df_map, geojson=geojson_url, locations='provinsi', featureidkey="properties.Propinsi",
+        color='kenaikan_persen', color_continuous_scale="Reds", scope="asia",
+        labels={'kenaikan_persen': 'Kenaikan Harga (%)'}
+    )
+    fig_map.update_geos(fitbounds="locations", visible=False)
+    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar=dict(title="Kenaikan (%)"))
+    st.plotly_chart(fig_map, use_container_width=True)
+else:
+    # Beri pesan peringatan jika data tidak cukup
+    st.warning("❗ Tidak cukup data untuk menampilkan peta risiko. Pastikan data untuk bulan terpilih dan bulan berikutnya tersedia.")
 
 with col2:
     st.subheader(f"Analisis Unsupervised: Risiko Harga di {selected_province}")
