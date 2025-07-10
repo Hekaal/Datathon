@@ -152,11 +152,29 @@ if selected_historical_date is not None:
         if not selected_date_data_df.empty:
             selected_date_data = selected_date_data_df.iloc[0]
 
-# Determine the target prediction date (month after selected date)
+# Determine the target prediction date (month after selected historical date)
 target_prediction_date = None
+predicted_data_for_target_date = None
+
 if selected_historical_date is not None and pd.notna(selected_historical_date):
-    target_prediction_date = selected_historical_date + pd.DateOffset(months=1)
-    target_prediction_date = target_prediction_date.replace(day=1)
+    try:
+        # Calculate the month immediately following the selected historical date
+        target_prediction_date = selected_historical_date + pd.DateOffset(months=1)
+        # Ensure it's the first day of the month for matching
+        target_prediction_date = target_prediction_date.replace(day=1)
+
+        # Retrieve the prediction data for the target prediction date
+        forecast_for_province = df_forecast[df_forecast['provinsi'] == selected_province]
+        if not forecast_for_province.empty and target_prediction_date is not None and pd.notna(target_prediction_date):
+            # Find the prediction entry matching the target date
+            predicted_data_df = forecast_for_province[forecast_for_province['tanggal'] == target_prediction_date]
+            if not predicted_data_df.empty:
+                predicted_data_for_target_date = predicted_data_df.iloc[0]
+
+    except Exception as e:
+        print(f"Could not calculate target prediction date or retrieve data: {e}")
+        target_prediction_date = None
+        predicted_data_for_target_date = None
 
 kpi1, kpi2, kpi3 = st.columns(3)
 
