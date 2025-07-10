@@ -24,10 +24,10 @@ def load_raw_data():
     forecast_df = None
     try:
         # Menggunakan file yang sesuai dengan analisis unsupervised
-        hist_df = pd.read_csv('master_table_modified_unsupervised.csv')
+        hist_df = pd.read_csv('master_table_fix.csv')
         print("master_table_modified_unsupervised.csv loaded successfully.")
 
-        forecast_df = pd.read_csv('hasil_prediksi_dengan_unsupervised.csv')
+        forecast_df = pd.read_csv('hasil_prediksi_12_bulan.csv')
         print("hasil_prediksi_dengan_unsupervised.csv loaded successfully.")
         
         return hist_df, forecast_df
