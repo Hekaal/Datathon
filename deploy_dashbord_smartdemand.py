@@ -221,16 +221,55 @@ kpi3.metric(
 )
 
 st.subheader("📝 Ringkasan Otomatis")
-if pd.notnull(harga_value) and pd.notnull(pred_price_numeric):
-    selisih = pred_price_numeric - harga_value
-    trend = "kenaikan" if selisih > 0 else "penurunan" if selisih < 0 else "stabil"
-    emoji = "🔺" if trend == "kenaikan" else "🔻" if trend == "penurunan" else "⚖️"
+
+# Cek data historis dan prediksi untuk log (debugging)
+
+# Ambil harga historis saat ini
+harga_hist = None
+if selected_date_data is not None:
+    if 'harga_beras' in selected_date_data:
+        harga_hist = pd.to_numeric(selected_date_data['harga_beras'], errors='coerce')
+    elif 'harga_prediksi' in selected_date_data:
+        harga_hist = pd.to_numeric(selected_date_data['harga_prediksi'], errors='coerce')
+
+# Ambil harga prediksi bulan depan (cek dari data prediksi terlebih dahulu)
+harga_pred = None
+source = None
+if predicted_data_for_target_date is not None:
+    if 'harga_prediksi' in predicted_data_for_target_date:
+        harga_pred = pd.to_numeric(predicted_data_for_target_date['harga_prediksi'], errors='coerce')
+        source = 'prediksi'
+    elif 'harga_beras' in predicted_data_for_target_date:
+        harga_pred = pd.to_numeric(predicted_data_for_target_date['harga_beras'], errors='coerce')
+        source = 'historis'
+
+# Validasi dan tampilkan ringkasan
+if pd.notnull(harga_hist) and pd.notnull(harga_pred):
+    selisih = harga_pred - harga_hist
+    if selisih > 0:
+        trend = "kenaikan"
+        emoji = "🔺"
+    elif selisih < 0:
+        trend = "penurunan"
+        emoji = "🔻"
+    else:
+        trend = "stabil"
+        emoji = "⚖️"
+
     st.markdown(
-        f"{emoji} Berdasarkan data tanggal terpilih, bulan berikutnya diprediksi mengalami **{trend}** dari **Rp {harga_value:,.0f}** menjadi **Rp {pred_price_numeric:,.0f}** "
-        f"di provinsi **{selected_province}**."
+        f"{emoji} Prediksi bulan depan menunjukkan **{trend}** dari harga saat ini "
+        f"**Rp {harga_hist:,.0f}** menjadi **Rp {harga_pred:,.0f}** "
+        f"pada bulan **{target_prediction_date.strftime('%B %Y')}** "
+        f"di provinsi **{selected_province}** (sumber: {source})."
     )
 else:
-    st.warning("❗ Data tidak lengkap untuk menghasilkan ringkasan otomatis.")
+    error_msgs = []
+    if harga_hist is None or pd.isna(harga_hist):
+        error_msgs.append("harga historis tidak tersedia")
+    if harga_pred is None or pd.isna(harga_pred):
+        error_msgs.append("harga prediksi bulan depan tidak tersedia")
+
+    st.warning(f"❗ Data harga tidak lengkap untuk menghasilkan ringkasan otomatis: {', '.join(error_msgs)}.")
 
 
 # --- MAIN DASHBOARD (2 Column Layout) ---
